@@ -148,11 +148,13 @@
         document.getElementById('httpsWarn').style.display = 'block';
       }
 
-      // Comprobar AutoScript
+      // Comprobar AutoScript e inicializar cliente
       var el = document.getElementById('estadoAS');
       if (typeof AutoScript !== 'undefined') {
+        AutoScript.cargarAppAfirma(null);
+        log('AutoScript.cargarAppAfirma(null) llamado — cliente inicializado');
         el.className = 'estado ok';
-        el.innerHTML = '<span class="dot"></span><span>AutoScript cargado correctamente (v' + (AutoScript.getVersion ? 'detectando...' : 'desconocida') + ')</span>';
+        el.innerHTML = '<span class="dot"></span><span>AutoScript cargado e inicializado</span>';
         log('AutoScript disponible en window.AutoScript');
       } else {
         el.className = 'estado error';
