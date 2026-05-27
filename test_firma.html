@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Autofirma — Fase 0</title>
+  <script src="autoscript.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f4f8; color: #1a2b3c; padding: 20px; max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 20px; color: #0b3e56; margin-bottom: 4px; }
+    .subtitulo { font-size: 13px; color: #5a7184; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .card h2 { font-size: 14px; color: #0b3e56; margin-bottom: 12px; }
+    .estado { display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 12px; border-radius: 8px; background: #e5eef4; }
+    .estado.ok { background: #d1fae5; color: #065f46; }
+    .estado.error { background: #fee2e2; color: #991b1b; }
+    .estado.warn { background: #fef3c7; color: #92400e; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #0b3e56; margin-bottom: 8px; }
+    input[type="file"] { width: 100%; padding: 10px; border: 2px dashed #b0c4d4; border-radius: 8px; font-size: 13px; cursor: pointer; background: #f8fafc; }
+    button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-firmar { background: #0f6f9c; color: #fff; }
+    .btn-firmar:hover:not(:disabled) { background: #0b5a80; }
+    .resultado { padding: 14px; border-radius: 8px; font-size: 13px; display: none; }
+    .resultado.ok { background: #d1fae5; color: #065f46; }
+    .resultado.error { background: #fee2e2; color: #991b1b; }
+    .resultado.info { background: #dbeafe; color: #1e40af; }
+    .log { font-family: monospace; font-size: 11px; background: #1e2d3d; color: #79c0e0; padding: 12px; border-radius: 8px; margin-top: 12px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; display: none; }
+    .https-warn { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; font-size: 12px; color: #92400e; margin-bottom: 16px; display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>Test Autofirma</h1>
+  <p class="subtitulo">Fase 0 — Verificación de integración con AutoScript</p>
+
+  <div class="https-warn" id="httpsWarn">
+    Atención: la página no se sirve por HTTPS. AutoScript puede no funcionar correctamente. Usa GitHub Pages o un servidor local con HTTPS.
+  </div>
+
+  <div class="card">
+    <h2>Estado de AutoScript</h2>
+    <div class="estado" id="estadoAS">
+      <span class="dot"></span>
+      <span>Comprobando...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Documento a firmar</h2>
+    <label for="pdfInput">Selecciona un PDF:</label>
+    <input type="file" id="pdfInput" accept=".pdf" onchange="onPDFSeleccionado()">
+    <p style="font-size:12px;color:#5a7184;margin-top:8px;" id="infoArchivo">Ningún archivo seleccionado</p>
+  </div>
+
+  <div class="card">
+    <h2>Firma</h2>
+    <button class="btn-firmar" id="btnFirmar" onclick="firmarPDF()" disabled>Firmar con Autofirma</button>
+    <div class="resultado" id="resultado"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script>
+    var pdfBase64 = null;
+
+    function log(msg) {
+      var el = document.getElementById('log');
+      el.style.display = 'block';
+      el.textContent += new Date().toLocaleTimeString() + ' — ' + msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function mostrarResultado(tipo, msg) {
+      var el = document.getElementById('resultado');
+      el.className = 'resultado ' + tipo;
+      el.style.display = 'block';
+      el.textContent = msg;
+    }
+
+    function onPDFSeleccionado() {
+      var file = document.getElementById('pdfInput').files[0];
+      if (!file) return;
+      document.getElementById('infoArchivo').textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+      log('Archivo seleccionado: ' + file.name + ' (' + file.size + ' bytes)');
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var bytes = new Uint8Array(e.target.result);
+        var binary = '';
+        for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        pdfBase64 = btoa(binary);
+        log('PDF convertido a base64: ' + pdfBase64.length + ' caracteres');
+        document.getElementById('btnFirmar').disabled = false;
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function firmarPDF() {
+      if (!pdfBase64) { mostrarResultado('error', 'Selecciona un PDF primero.'); return; }
+
+      var btn = document.getElementById('btnFirmar');
+      btn.disabled = true;
+      btn.textContent = 'Invocando Autofirma...';
+      mostrarResultado('info', 'Esperando respuesta de Autofirma...');
+      log('Llamando a AutoScript.sign() — formato PAdES, algoritmo SHA256withRSA');
+
+      AutoScript.sign(
+        pdfBase64,
+        'SHA256withRSA',
+        'PAdES',
+        '',
+        function(firmaB64, certB64) {
+          log('Firma recibida: ' + firmaB64.length + ' caracteres');
+          log('Certificado recibido: ' + certB64.length + ' caracteres');
+
+          // Convertir base64 a blob y descargar
+          var binary = atob(firmaB64);
+          var bytes = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          var blob = new Blob([bytes], { type: 'application/pdf' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = 'documento_firmado.pdf';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+          mostrarResultado('ok', 'PDF firmado correctamente. Descargando...');
+          btn.textContent = 'Firmar con Autofirma';
+          btn.disabled = false;
+        },
+        function(tipo, mensaje, codigo) {
+          log('ERROR — tipo: ' + tipo + ' | mensaje: ' + mensaje + ' | codigo: ' + (codigo || '-'));
+          mostrarResultado('error', 'Error: ' + mensaje + (codigo ? ' (código ' + codigo + ')' : ''));
+          btn.textContent = 'Firmar con Autofirma';
+          btn.disabled = false;
+        }
+      );
+    }
+
+    window.addEventListener('load', function() {
+      // Aviso HTTPS
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        document.getElementById('httpsWarn').style.display = 'block';
+      }
+
+      // Comprobar AutoScript
+      var el = document.getElementById('estadoAS');
+      if (typeof AutoScript !== 'undefined') {
+        el.className = 'estado ok';
+        el.innerHTML = '<span class="dot"></span><span>AutoScript cargado correctamente (v' + (AutoScript.getVersion ? 'detectando...' : 'desconocida') + ')</span>';
+        log('AutoScript disponible en window.AutoScript');
+      } else {
+        el.className = 'estado error';
+        el.innerHTML = '<span class="dot"></span><span>Error: AutoScript no disponible. Comprueba que autoscript.js está en la misma carpeta.</span>';
+        log('ERROR: AutoScript no disponible');
+      }
+    });
+  </script>
+
+</body>
+</html>
