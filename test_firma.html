@@ -105,7 +105,7 @@
       btn.textContent = 'Invocando Autofirma...';
       mostrarResultado('info', 'Esperando respuesta de Autofirma...');
       log('Llamando a AutoScript.sign() — formato PAdES, algoritmo SHA256withRSA');
-
+      try {
       AutoScript.sign(
         pdfBase64,
         'SHA256withRSA',
@@ -140,6 +140,12 @@
           btn.disabled = false;
         }
       );
+      } catch(e) {
+        log('EXCEPCION en sign(): ' + e.message);
+        mostrarResultado('error', 'Excepción: ' + e.message);
+        btn.textContent = 'Firmar con Autofirma';
+        btn.disabled = false;
+      }
     }
 
     window.addEventListener('load', function() {
@@ -151,8 +157,13 @@
       // Comprobar AutoScript e inicializar cliente
       var el = document.getElementById('estadoAS');
       if (typeof AutoScript !== 'undefined') {
-        AutoScript.cargarAppAfirma(null);
-        log('AutoScript.cargarAppAfirma(null) llamado — cliente inicializado');
+        try {
+          AutoScript.cargarAppAfirma(null);
+          log('cargarAppAfirma(null) ejecutado sin excepcion');
+        } catch(e) {
+          log('ERROR en cargarAppAfirma: ' + e.message);
+        }
+        log('needNativeAppInstalled: ' + AutoScript.needNativeAppInstalled());
         el.className = 'estado ok';
         el.innerHTML = '<span class="dot"></span><span>AutoScript cargado e inicializado</span>';
         log('AutoScript disponible en window.AutoScript');
